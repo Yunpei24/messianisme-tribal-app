@@ -1,8 +1,100 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
+import localforage from 'localforage';
+import { generateUUID } from '../utils/uuid';
 
 let db;
 
-export const initDatabase = async () => {
+// ---- LOGIQUE WEB (IndexedDB via localforage) ----
+const initWebDatabase = async () => {
+  localforage.config({
+    name: 'messianisme_db',
+    storeName: 'tables'
+  });
+
+  // Initialise les "tables" (clés) si elles n'existent pas
+  const tables = ['local_participants', 'local_sessions', 'local_personnes', 'local_session_participants', 'sync_queue'];
+  for (const table of tables) {
+    const exists = await localforage.getItem(table);
+    if (!exists) {
+      await localforage.setItem(table, []);
+    }
+  }
+  db = 'web_db_initialized';
+};
+
+const insertLocalWeb = async (tableName, data) => {
+  let tableData = await localforage.getItem(tableName) || [];
+  // Replace if exists
+  const index = tableData.findIndex(item => item.id === data.id);
+  if (index >= 0) {
+    tableData[index] = { ...tableData[index], ...data };
+  } else {
+    tableData.push(data);
+  }
+  await localforage.setItem(tableName, tableData);
+};
+
+const updateLocalWeb = async (tableName, id, data) => {
+  let tableData = await localforage.getItem(tableName) || [];
+  const index = tableData.findIndex(item => item.id === id);
+  if (index >= 0) {
+    tableData[index] = { ...tableData[index], ...data };
+    await localforage.setItem(tableName, tableData);
+  }
+};
+
+const deleteLocalWeb = async (tableName, id) => {
+  let tableData = await localforage.getItem(tableName) || [];
+  tableData = tableData.filter(item => item.id !== id);
+  await localforage.setItem(tableName, tableData);
+};
+
+const queryLocalWeb = async (tableName, conditions = {}, order = '') => {
+  let tableData = await localforage.getItem(tableName) || [];
+
+  // Filtres
+  const keys = Object.keys(conditions);
+  if (keys.length > 0) {
+    tableData = tableData.filter(item => {
+      return keys.every(k => item[k] === conditions[k]);
+    });
+  }
+
+  // Tri basique (asc/desc sur un champ)
+  if (order) {
+    const orderMatch = order.match(/ORDER BY (\w+) (ASC|DESC)/i);
+    if (orderMatch) {
+      const field = orderMatch[1];
+      const direction = orderMatch[2].toUpperCase() === 'ASC' ? 1 : -1;
+
+      tableData.sort((a, b) => {
+        if (a[field] < b[field]) return -1 * direction;
+        if (a[field] > b[field]) return 1 * direction;
+        return 0;
+      });
+    }
+  }
+
+  return tableData;
+};
+
+const addToSyncQueueWeb = async (tableName, recordId, action, data) => {
+  let queue = await localforage.getItem('sync_queue') || [];
+  queue.push({
+    id: generateUUID(), // localforage ne gère pas l'autoincrement, on utilise un UUID
+    table_name: tableName,
+    record_id: recordId,
+    action: action,
+    data: JSON.stringify(data),
+    created_at: new Date().toISOString()
+  });
+  await localforage.setItem('sync_queue', queue);
+};
+
+
+// ---- LOGIQUE MOBILE (SQLite) ----
+const initMobileDatabase = async () => {
   db = await SQLite.openDatabaseAsync('messianisme.db');
 
   // Participants
@@ -88,9 +180,19 @@ export const initDatabase = async () => {
   `);
 };
 
+export const initDatabase = async () => {
+  if (Platform.OS === 'web') {
+    await initWebDatabase();
+  } else {
+    await initMobileDatabase();
+  }
+};
+
 export const getDb = () => db;
 
 export const insertLocal = async (tableName, data) => {
+  if (Platform.OS === 'web') return insertLocalWeb(tableName, data);
+
   if (!db) return;
   const keys = Object.keys(data);
   const values = Object.values(data);
@@ -101,6 +203,8 @@ export const insertLocal = async (tableName, data) => {
 };
 
 export const updateLocal = async (tableName, id, data) => {
+  if (Platform.OS === 'web') return updateLocalWeb(tableName, id, data);
+
   if (!db) return;
   const keys = Object.keys(data);
   const values = Object.values(data);
@@ -111,11 +215,15 @@ export const updateLocal = async (tableName, id, data) => {
 };
 
 export const deleteLocal = async (tableName, id) => {
+  if (Platform.OS === 'web') return deleteLocalWeb(tableName, id);
+
   if (!db) return;
   await db.runAsync(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
 };
 
 export const queryLocal = async (tableName, conditions = {}, order = '') => {
+  if (Platform.OS === 'web') return queryLocalWeb(tableName, conditions, order);
+
   if (!db) return [];
   const keys = Object.keys(conditions);
   const values = Object.values(conditions);
@@ -134,6 +242,8 @@ export const queryLocal = async (tableName, conditions = {}, order = '') => {
 };
 
 export const addToSyncQueue = async (tableName, recordId, action, data) => {
+  if (Platform.OS === 'web') return addToSyncQueueWeb(tableName, recordId, action, data);
+
   if (!db) return;
   await db.runAsync(
     'INSERT INTO sync_queue (table_name, record_id, action, data) VALUES (?, ?, ?, ?)',

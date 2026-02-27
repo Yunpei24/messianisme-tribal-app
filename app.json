@@ -22,7 +22,13 @@
       "package": "com.j2yen.messianismetribal_bf"
     },
     "web": {
-      "favicon": "./assets/logo.png"
+      "favicon": "./assets/logo.png",
+      "shortName": "MessiTribal",
+      "name": "Messianisme Tribal",
+      "description": "Application de collecte de données pour le Messianisme Tribal (Offline-First).",
+      "display": "standalone",
+      "backgroundColor": "#2563eb",
+      "themeColor": "#2563eb"
     },
     "plugins": [
       "expo-sqlite",

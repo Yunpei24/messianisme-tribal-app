@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, Alert, Platform } from 'react-native';
 import { Title, Card, Paragraph, IconButton, Divider } from 'react-native-paper';
 import CustomInput from '../components/shared/CustomInput';
 import CustomButton from '../components/shared/CustomButton';
@@ -25,7 +25,8 @@ export default function SessionConfigScreen() {
 
     const handleSave = async () => {
         if (!localite || !dateDebut || !dateFin) {
-            Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+            if (Platform.OS === 'web') window.alert('Erreur: Veuillez remplir tous les champs');
+            else Alert.alert('Erreur', 'Veuillez remplir tous les champs');
             return;
         }
         setLoading(true);
@@ -37,21 +38,24 @@ export default function SessionConfigScreen() {
                     date_fin: dateFin,
                 });
                 setEditId(null);
-                Alert.alert('Succès', 'Session mise à jour avec succès');
+                if (Platform.OS === 'web') window.alert('Succès: Session mise à jour avec succès');
+                else Alert.alert('Succès', 'Session mise à jour avec succès');
             } else {
                 await createSession({
                     localite_activite: localite,
                     date_debut: dateDebut,
                     date_fin: dateFin,
                 });
-                Alert.alert('Succès', 'Session créée avec succès');
+                if (Platform.OS === 'web') window.alert('Succès: Session créée avec succès');
+                else Alert.alert('Succès', 'Session créée avec succès');
             }
             setLocalite('');
             setDateDebut('');
             setDateFin('');
             await loadSessions();
         } catch (e) {
-            Alert.alert('Erreur', e.message);
+            if (Platform.OS === 'web') window.alert('Erreur: ' + e.message);
+            else Alert.alert('Erreur', e.message);
         } finally {
             setLoading(false);
         }
@@ -65,21 +69,27 @@ export default function SessionConfigScreen() {
     };
 
     const handleDelete = (id) => {
-        Alert.alert(
-            "Confirmation",
-            "Voulez-vous vraiment supprimer cette session ?",
-            [
-                { text: "Annuler", style: "cancel" },
-                {
-                    text: "Supprimer",
-                    style: "destructive",
-                    onPress: async () => {
-                        await deleteSession(id);
-                        await loadSessions();
+        if (Platform.OS === 'web') {
+            if (window.confirm("Voulez-vous vraiment supprimer cette session ?")) {
+                deleteSession(id).then(() => loadSessions());
+            }
+        } else {
+            Alert.alert(
+                "Confirmation",
+                "Voulez-vous vraiment supprimer cette session ?",
+                [
+                    { text: "Annuler", style: "cancel" },
+                    {
+                        text: "Supprimer",
+                        style: "destructive",
+                        onPress: async () => {
+                            await deleteSession(id);
+                            await loadSessions();
+                        }
                     }
-                }
-            ]
-        );
+                ]
+            );
+        }
     };
 
     const renderItem = ({ item }) => (
@@ -89,7 +99,10 @@ export default function SessionConfigScreen() {
                 <Paragraph>Du: {item.date_debut} Au: {item.date_fin}</Paragraph>
             </Card.Content>
             <Card.Actions>
-                <IconButton icon="account-plus" onPress={() => Alert.alert('Information', "La liaison se fait automatiquement lorsque vous sélectionnez ce participant pendant une Nouvelle Enquête dans l'onglet Enquête.")} />
+                <IconButton icon="account-plus" onPress={() => {
+                    if (Platform.OS === 'web') window.alert("Information\nLa liaison se fait automatiquement lorsque vous sélectionnez ce participant pendant une Nouvelle Enquête dans l'onglet Enquête.");
+                    else Alert.alert('Information', "La liaison se fait automatiquement lorsque vous sélectionnez ce participant pendant une Nouvelle Enquête dans l'onglet Enquête.");
+                }} />
                 <IconButton icon="pencil" onPress={() => handleEdit(item)} />
                 <IconButton icon="delete" onPress={() => handleDelete(item.id)} />
             </Card.Actions>

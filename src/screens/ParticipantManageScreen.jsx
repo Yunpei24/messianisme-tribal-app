@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, Alert, Platform } from 'react-native';
 import { Title, Card, IconButton, Divider } from 'react-native-paper';
 import CustomInput from '../components/shared/CustomInput';
 import CustomButton from '../components/shared/CustomButton';
@@ -23,7 +23,8 @@ export default function ParticipantManageScreen() {
 
     const handleSave = async () => {
         if (!nom) {
-            Alert.alert('Erreur', 'Le nom est requis');
+            if (Platform.OS === 'web') window.alert('Erreur: Le nom est requis');
+            else Alert.alert('Erreur', 'Le nom est requis');
             return;
         }
         setLoading(true);
@@ -37,7 +38,8 @@ export default function ParticipantManageScreen() {
             setNom('');
             await loadParticipants();
         } catch (e) {
-            Alert.alert('Erreur', e.message);
+            if (Platform.OS === 'web') window.alert('Erreur: ' + e.message);
+            else Alert.alert('Erreur', e.message);
         } finally {
             setLoading(false);
         }
@@ -49,21 +51,27 @@ export default function ParticipantManageScreen() {
     };
 
     const handleDelete = (id) => {
-        Alert.alert(
-            "Confirmation",
-            "Voulez-vous vraiment supprimer ce participant ?",
-            [
-                { text: "Annuler", style: "cancel" },
-                {
-                    text: "Supprimer",
-                    style: "destructive",
-                    onPress: async () => {
-                        await deleteParticipant(id);
-                        await loadParticipants();
+        if (Platform.OS === 'web') {
+            if (window.confirm("Voulez-vous vraiment supprimer ce participant ?")) {
+                deleteParticipant(id).then(() => loadParticipants());
+            }
+        } else {
+            Alert.alert(
+                "Confirmation",
+                "Voulez-vous vraiment supprimer ce participant ?",
+                [
+                    { text: "Annuler", style: "cancel" },
+                    {
+                        text: "Supprimer",
+                        style: "destructive",
+                        onPress: async () => {
+                            await deleteParticipant(id);
+                            await loadParticipants();
+                        }
                     }
-                }
-            ]
-        );
+                ]
+            );
+        }
     };
 
     const renderItem = ({ item }) => (

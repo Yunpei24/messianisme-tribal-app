@@ -40,7 +40,8 @@ export default function EnqueteScreen({ navigation }) {
 
     const handleSave = async (reset = false) => {
         if (!sessionId || !participantId || !nom || !prenoms) {
-            Alert.alert('Erreur', 'Veuillez remplir les champs obligatoires');
+            if (Platform.OS === 'web') window.alert('Erreur: Veuillez remplir les champs obligatoires');
+            else Alert.alert('Erreur', 'Veuillez remplir les champs obligatoires');
             return;
         }
 
@@ -59,7 +60,8 @@ export default function EnqueteScreen({ navigation }) {
                 occupation: occupation
             });
 
-            Alert.alert('Succès', 'Enquête enregistrée avec succès');
+            if (Platform.OS === 'web') window.alert('Succès: Enquête enregistrée avec succès');
+            else Alert.alert('Succès', 'Enquête enregistrée avec succès');
 
             if (reset) {
                 setNom('');
@@ -73,7 +75,8 @@ export default function EnqueteScreen({ navigation }) {
                 navigation.goBack();
             }
         } catch (e) {
-            Alert.alert('Erreur', e.message);
+            if (Platform.OS === 'web') window.alert('Erreur: ' + e.message);
+            else Alert.alert('Erreur', e.message);
         } finally {
             setLoading(false);
         }
